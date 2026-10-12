@@ -343,7 +343,7 @@ async function loadEnergy() {
   $("#en-cost").textContent = (e.today_kwh * tariff).toFixed(2);
   $("#en-week").textContent = `${e.week.reduce((a, d) => a + d.kwh, 0).toFixed(1)} kWh`;
   $("#energy-devices").innerHTML = e.devices.map((d) => {
-    const dev = state.devices[d.id] || { type: "plug" };
+    const dev = state.devices[d.id] || d;
     return `<li><span class="lead-icon ${d.on ? "" : "ok"}">${icon(deviceIcon(dev))}</span>
       <div class="li-body"><div class="li-title sm">${esc(d.name)}</div><div class="li-sub">${d.on_hours} h · ${d.watts} W</div></div>
       <span class="li-meta">${d.kwh} kWh</span></li>`;
@@ -435,6 +435,7 @@ function showTab(name) {
   TAB_LOADERS[name]?.().catch((err) => snackbar(err.message, "warning"));
   updateStream();
   safeSet("pihome-tab", name);
+  if (location.hash !== `#${name}`) history.replaceState(null, "", `#${name}`);
   window.scrollTo({ top: 0 });
 }
 $("#tabs").addEventListener("click", (e) => { const b = e.target.closest(".nav-item"); if (b) showTab(b.dataset.tab); });
@@ -445,4 +446,10 @@ setInterval(renderGreeting, 60000);
 window.addEventListener("scroll", () => $("#app-bar").classList.toggle("scrolled", window.scrollY > 4), { passive: true });
 
 connect();
-showTab(safeGet("pihome-tab") || "home");
+// deep links: /#security, /#energy ... (falls back to the last opened tab)
+const hashTab = location.hash.slice(1);
+showTab(document.getElementById(`tab-${hashTab}`) ? hashTab : safeGet("pihome-tab") || "home");
+window.addEventListener("hashchange", () => {
+  const t = location.hash.slice(1);
+  if (t !== currentTab && document.getElementById(`tab-${t}`)) showTab(t);
+});

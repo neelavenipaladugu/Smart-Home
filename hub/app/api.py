@@ -115,7 +115,7 @@ def build_router(ctx) -> APIRouter:
             secs = home.db.on_seconds(d.id, midnight, now)
             kwh = d.watts * secs / 3_600_000
             total_today += kwh
-            devices.append({"id": d.id, "name": d.name, "watts": d.watts, "on_hours": round(secs / 3600, 2),
+            devices.append({"id": d.id, "name": d.name, "type": d.type, "watts": d.watts, "on_hours": round(secs / 3600, 2),
                             "kwh": round(kwh, 3), "on": d.on})
         week = []
         for i in range(6, -1, -1):

@@ -4,7 +4,20 @@ A complete, modular smart home system. The Raspberry Pi 4 is the brain. It contr
 watches over the house with a camera and sensors, waters the garden, tracks energy use, and takes commands from a
 web dashboard, Telegram, or your voice. Wireless **ESP32 room nodes** let it cover the whole house.
 
-![modules](https://img.shields.io/badge/modules-10-38bdf8) ![python](https://img.shields.io/badge/python-3.11%2B-6366f1) ![license](https://img.shields.io/badge/license-MIT-22c55e)
+![modules](https://img.shields.io/badge/modules-10-38bdf8) ![python](https://img.shields.io/badge/python-3.11%2B-6366f1) ![license](https://img.shields.io/badge/license-MIT-22c55e) ![ui](https://img.shields.io/badge/UI-Material%203-6750A4)
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/home-dark.png">
+  <img alt="PiHome dashboard - Material 3 home screen with rooms, quick-settings tiles and live activity" src="docs/screenshots/home-light.png">
+</picture>
+
+<p align="center">
+  <img src="docs/screenshots/mobile-light.png" width="24%" alt="Phone - light theme">
+  <img src="docs/screenshots/mobile-dark.png" width="24%" alt="Phone - dark theme">
+  <img src="docs/screenshots/mobile-teal.png" width="24%" alt="Phone - teal dynamic colour">
+  <img src="docs/screenshots/mobile-theme-dialog.png" width="24%" alt="Phone - Material You theme picker">
+</p>
+<p align="center"><sub>Android-style Material You dashboard on a phone: light, dark, dynamic colour, and the theme picker</sub></p>
 
 ## ✨ Features
 
@@ -24,6 +37,33 @@ web dashboard, Telegram, or your voice. Wireless **ESP32 room nodes** let it cov
 | ✈️ **Telegram bot** | Alerts with photos and remote control from anywhere: `/status`, `/on`, `/arm`, `/photo` |
 | 🧪 **Simulation mode** | Runs on any PC with fake sensors, so you can develop without hardware |
 
+## 📸 Screenshots
+
+> Captured from simulation mode (`python main.py --mock`), so you can see the same thing on your PC without any hardware.
+
+### 🛡️ Security: live camera, arm/disarm, sensors, RFID access log
+![Security screen](docs/screenshots/security-dark.png)
+
+### ⚡ Energy: live load, daily kWh, cost and per-device usage
+![Energy screen](docs/screenshots/energy-light.png)
+
+### 🤖 Routines: every automation from `config.yaml`, with on/off switches
+![Routines screen](docs/screenshots/routines-light.png)
+
+### 📈 History: sensor charts and the event log
+![History screen](docs/screenshots/history-dark.png)
+
+<details>
+<summary><b>Home screen, light and dark (desktop)</b></summary>
+
+![Home light](docs/screenshots/home-light.png)
+![Home dark](docs/screenshots/home-dark.png)
+</details>
+
+**UI highlights:** Material 3 navigation rail (desktop) and bottom navigation bar (phone) · quick-settings device
+tiles · dynamic colour from 8 seed colours · auto, light and dark modes · voice FAB · snackbars · M3 switches, chips and
+segmented buttons · installable as a phone app ("Add to Home screen").
+
 ## 📁 Project structure
 
 ```
@@ -31,7 +71,8 @@ rapaberry 5.0/
 ├── README.md
 ├── docs/
 │   ├── WIRING.md            ← parts list, Pi + ESP32 pinouts, safety
-│   └── ARCHITECTURE.md      ← design, MQTT topics, REST API, how to extend
+│   ├── ARCHITECTURE.md      ← design, MQTT topics, REST API, how to extend
+│   └── screenshots/         ← images used in this README
 ├── hub/                     ← runs on the Raspberry Pi
 │   ├── main.py              ← entry point
 │   ├── config.yaml          ← devices, sensors, automations, schedules
@@ -52,7 +93,7 @@ rapaberry 5.0/
 │   │   ├── rfid.py          ← RC522 door access
 │   │   ├── voice.py         ← offline voice commands
 │   │   └── api.py           ← REST + WebSocket
-│   ├── static/              ← dashboard (index.html, style.css, app.js)
+│   ├── static/              ← Material 3 dashboard (index.html, style.css, app.js, theme.js)
 │   └── tests/               ← pytest suite
 ├── firmware/
 │   └── esp32_room_node/     ← Arduino sketch + config.h for each room

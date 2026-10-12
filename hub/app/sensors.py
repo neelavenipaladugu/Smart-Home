@@ -108,7 +108,10 @@ class MqttSensor(Sensor):
         if not self.home.hw.mock:
             return
         state = {"temperature": random.uniform(25, 30), "humidity": random.uniform(40, 70),
-                 "soil": random.uniform(35, 60), "light": random.uniform(20, 80)}
+                 "light": random.uniform(20, 80)}
+        has_soil = any(getattr(d, "node", None) == self.node and d.type == "pump" for d in self.home.devices.values())
+        if has_soil:
+            state["soil"] = random.uniform(40, 60)
         while True:
             await asyncio.sleep(self.interval)
             if self.home.mqtt and self.home.mqtt.connected:
@@ -117,7 +120,8 @@ class MqttSensor(Sensor):
                           for d in self.home.devices.values())
             state["temperature"] = min(38, max(18, state["temperature"] + random.uniform(-0.35, 0.4)))
             state["humidity"] = min(95, max(20, state["humidity"] + random.uniform(-1, 1)))
-            state["soil"] = min(100, max(0, state["soil"] + (8 if pump_on else -random.uniform(0.3, 1.2))))
+            if has_soil:  # slowly dries out, jumps up while the pump runs
+                state["soil"] = min(95, max(10, state["soil"] + (8 if pump_on else random.uniform(-0.6, 0.4))))
             state["light"] = min(100, max(0, state["light"] + random.uniform(-3, 3)))
             self.push({k: round(v, 1) for k, v in state.items()})
 
