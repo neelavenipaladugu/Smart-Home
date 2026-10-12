@@ -1,0 +1,17 @@
+[Unit]
+Description=PiHome Smart Home Hub
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__HUB_DIR__
+ExecStart=__HUB_DIR__/.venv/bin/python main.py
+# Optional secrets (TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, PIHOME_API_KEY)
+EnvironmentFile=-__HUB_DIR__/.env
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

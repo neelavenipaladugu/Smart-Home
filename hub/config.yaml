@@ -1,0 +1,290 @@
+# ============================================================
+#  PiHome Hub - main configuration
+#  Edit this file to match your wiring. Restart the hub after changes.
+#  Pin numbers are BCM GPIO numbers (not physical pin numbers).
+# ============================================================
+
+hub:
+  name: "PiHome"
+  host: 0.0.0.0
+  port: 8000
+  # auto  = real GPIO on a Raspberry Pi, simulated everywhere else
+  # true  = always simulate (great for testing on a PC)
+  # false = always use real hardware
+  mock_hardware: auto
+  db_path: data/smarthome.db
+  # Optional: set a key to protect the dashboard/API (or use env PIHOME_API_KEY)
+  api_key: ""
+  history_days: 30
+
+mqtt:
+  enabled: true
+  host: localhost
+  port: 1883
+  username: ""
+  password: ""
+  base_topic: home
+
+telegram:
+  enabled: false
+  token: ""        # or env TELEGRAM_TOKEN
+  chat_id: ""      # or env TELEGRAM_CHAT_ID
+
+# ------------------------------------------------------------
+# Devices = things the hub can switch ON / OFF
+#   driver: gpio -> relay wired to the Pi
+#   driver: mqtt -> relay on an ESP32 room node
+#   watts: used to estimate energy use
+# ------------------------------------------------------------
+devices:
+  - id: living_light
+    name: Living Room Light
+    room: Living Room
+    type: light
+    driver: gpio
+    pin: 17
+    active_high: false   # most relay boards switch on a LOW signal
+    watts: 12
+
+  - id: living_fan
+    name: Living Room Fan
+    room: Living Room
+    type: fan
+    driver: gpio
+    pin: 27
+    active_high: false
+    watts: 60
+
+  - id: kitchen_light
+    name: Kitchen Light
+    room: Kitchen
+    type: light
+    driver: gpio
+    pin: 22
+    active_high: false
+    watts: 10
+
+  - id: siren
+    name: Alarm Siren
+    room: Hallway
+    type: alarm
+    driver: gpio
+    pin: 24
+    active_high: true
+    watts: 3
+
+  - id: door_lock
+    name: Front Door Lock
+    room: Hallway
+    type: lock
+    driver: gpio
+    pin: 16              # GPIO25 is used by the RFID reader's RST line
+    active_high: false
+    watts: 5
+
+  - id: bedroom_light
+    name: Bedroom Light
+    room: Bedroom
+    type: light
+    driver: mqtt
+    node: bedroom
+    channel: 1
+    watts: 10
+
+  - id: bedroom_ac
+    name: Bedroom AC
+    room: Bedroom
+    type: ac
+    driver: mqtt
+    node: bedroom
+    channel: 2
+    watts: 1200
+
+  - id: garden_pump
+    name: Garden Water Pump
+    room: Garden
+    type: pump
+    driver: mqtt
+    node: garden
+    channel: 1
+    watts: 40
+
+# ------------------------------------------------------------
+# Sensors
+#   dht22  -> fields: temperature, humidity
+#   pir    -> field: motion
+#   mq2    -> field: gas       (digital DO pin of the MQ-2 module)
+#   door   -> field: open      (reed switch to GND)
+#   leak   -> field: leak
+#   mqtt   -> any JSON fields sent by an ESP32 node
+#   system -> Pi CPU temperature / load / memory
+# ------------------------------------------------------------
+sensors:
+  - id: living_env
+    name: Living Room Climate
+    room: Living Room
+    type: dht22
+    pin: 4
+    interval: 15
+
+  - id: living_motion
+    name: Living Room Motion
+    room: Living Room
+    type: pir
+    pin: 23
+
+  - id: kitchen_gas
+    name: Kitchen Gas
+    room: Kitchen
+    type: mq2
+    pin: 5
+    active_low: true     # MQ-2 module pulls DO low when gas is detected
+
+  - id: front_door
+    name: Front Door
+    room: Hallway
+    type: door
+    pin: 6
+
+  - id: bathroom_leak
+    name: Bathroom Water Leak
+    room: Bathroom
+    type: leak
+    pin: 13
+    active_low: true
+
+  - id: bedroom_env
+    name: Bedroom Node
+    room: Bedroom
+    type: mqtt
+    node: bedroom
+
+  - id: garden_env
+    name: Garden Node
+    room: Garden
+    type: mqtt
+    node: garden
+
+  - id: hub_system
+    name: Hub (Raspberry Pi)
+    room: System
+    type: system
+    interval: 30
+
+# ------------------------------------------------------------
+# Automations - "when <sensor field> ... then <actions>"
+#   when:   sensor: <sensor_id>.<field>
+#           above / below / equals, optional hysteresis
+#   only_between: ["HH:MM", "HH:MM"]   (works across midnight)
+#   then / otherwise: list of actions
+#     - device: <id>, action: on|off|toggle, for: <seconds>
+#     - notify: "message with {value}"   (dashboard + Telegram)
+#     - alert:  "message"  level: info|warning|danger
+#     - snapshot: true                   (camera photo to Telegram)
+#   cooldown: seconds before the rule can fire again
+# ------------------------------------------------------------
+automations:
+  - name: Cool the living room
+    when: { sensor: living_env.temperature, above: 30, hysteresis: 1 }
+    then:
+      - { device: living_fan, action: on }
+    otherwise:
+      - { device: living_fan, action: off }
+
+  - name: Gas leak alarm
+    when: { sensor: kitchen_gas.gas, equals: true }
+    then:
+      - { device: siren, action: on, for: 60 }
+      - { alert: "GAS DETECTED in the kitchen! Ventilate now.", level: danger }
+    cooldown: 60
+
+  - name: Water leak alarm
+    when: { sensor: bathroom_leak.leak, equals: true }
+    then:
+      - { alert: "Water leak detected in the bathroom!", level: danger }
+    cooldown: 300
+
+  - name: Night motion light
+    when: { sensor: living_motion.motion, equals: true }
+    only_between: ["18:00", "06:00"]
+    then:
+      - { device: living_light, action: on, for: 120 }
+
+  - name: Door opened while armed
+    when: { sensor: front_door.open, equals: true }
+    only_when_armed: true
+    then:
+      - { device: siren, action: on, for: 30 }
+      - { alert: "Front door opened while the alarm is armed!", level: danger }
+      - { snapshot: true }
+    cooldown: 60
+
+  - name: Water the garden when dry
+    when: { sensor: garden_env.soil, below: 30, hysteresis: 10 }
+    then:
+      - { device: garden_pump, action: on, for: 30 }
+      - { notify: "Garden soil is dry ({value}%), watering for 30s" }
+    cooldown: 1800
+
+  - name: Bedroom AC above 29C
+    when: { sensor: bedroom_env.temperature, above: 29, hysteresis: 1.5 }
+    then:
+      - { device: bedroom_ac, action: on }
+    otherwise:
+      - { device: bedroom_ac, action: off }
+
+  - name: Hub overheating
+    when: { sensor: hub_system.cpu_temp, above: 75 }
+    then:
+      - { alert: "Raspberry Pi CPU is hot ({value} C). Check cooling.", level: warning }
+    cooldown: 3600
+
+# Time based actions (days optional: mon tue wed thu fri sat sun)
+schedules:
+  - name: Evening kitchen light
+    at: "19:00"
+    then:
+      - { device: kitchen_light, action: on }
+  - name: Lights out
+    at: "23:30"
+    then:
+      - { device: kitchen_light, action: off }
+      - { device: living_light, action: off }
+  - name: Morning garden watering
+    at: "06:30"
+    days: [mon, wed, fri, sun]
+    then:
+      - { device: garden_pump, action: on, for: 60 }
+
+# ------------------------------------------------------------
+# Security camera (USB webcam or Pi Camera module)
+# ------------------------------------------------------------
+camera:
+  enabled: true
+  source: usb            # usb | picamera
+  device_index: 0
+  resolution: [640, 480]
+  motion_sensitivity: 2500   # changed pixels needed to count as motion (lower = more sensitive)
+  alert_cooldown: 60
+  face_recognition: false    # needs the face_recognition package (slow on Pi, optional)
+  known_faces_dir: data/faces
+
+# ------------------------------------------------------------
+# RFID door access (RC522 reader on SPI)
+# ------------------------------------------------------------
+rfid:
+  enabled: true
+  lock_device: door_lock
+  unlock_seconds: 5
+  cards:
+    "123456789012": "Owner"
+    "987654321098": "Family"
+
+# ------------------------------------------------------------
+# Offline voice control (Vosk + USB microphone)
+# Say: "turn on living room light", "turn off the fan", "status"
+# ------------------------------------------------------------
+voice:
+  enabled: false
+  model_path: data/vosk-model-small-en-us
+  wake_word: "home"

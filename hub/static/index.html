@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#FEF7FF" id="meta-theme">
+  <title>PiHome</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='28' fill='%236750A4'/><text x='50' y='68' font-size='52' text-anchor='middle'>🏠</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,400;8..144,500;8..144,600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=block">
+  <link rel="stylesheet" href="/static/style.css">
+  <script>
+    // apply saved light/dark choice before first paint (no flash)
+    try { const m = localStorage.getItem("pihome-mode"); if (m && m !== "auto") document.documentElement.dataset.theme = m; } catch {}
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+  <!-- ================= Navigation rail (desktop) / navigation bar (phone) ================= -->
+  <nav class="nav" id="tabs" aria-label="Main">
+    <button class="fab fab-rail" id="fab-rail" title="Voice command" aria-label="Voice command">
+      <span class="ms">mic</span>
+    </button>
+    <button class="nav-item active" data-tab="home"><span class="nav-pill"><span class="ms">home</span></span><span class="nav-label">Home</span></button>
+    <button class="nav-item" data-tab="security"><span class="nav-pill"><span class="ms">shield</span></span><span class="nav-label">Security</span></button>
+    <button class="nav-item" data-tab="energy"><span class="nav-pill"><span class="ms">bolt</span></span><span class="nav-label">Energy</span></button>
+    <button class="nav-item" data-tab="automations"><span class="nav-pill"><span class="ms">smart_toy</span></span><span class="nav-label">Routines</span></button>
+    <button class="nav-item" data-tab="history"><span class="nav-pill"><span class="ms">monitoring</span></span><span class="nav-label">History</span></button>
+  </nav>
+
+  <div class="app">
+    <!-- ================= Top app bar ================= -->
+    <header class="top-app-bar" id="app-bar">
+      <div class="headline">
+        <span id="home-name">PiHome</span>
+        <span id="mode-badge" class="badge-chip hidden"><span class="ms sm">science</span>Simulation</span>
+      </div>
+      <div class="bar-actions">
+        <span id="conn" class="conn" title="Live connection"></span>
+        <button id="arm-btn" class="btn tonal"><span class="ms">lock_open</span><span class="btn-text">Disarmed</span></button>
+        <button class="icon-btn" id="theme-btn" title="Theme" aria-label="Theme"><span class="ms">palette</span></button>
+      </div>
+    </header>
+
+    <main>
+      <!-- ============================== HOME ============================== -->
+      <section id="tab-home" class="tab active">
+        <div class="greeting">
+          <h1 id="greet">Hello</h1>
+          <p id="greet-sub" class="on-variant">Loading your home…</p>
+        </div>
+
+        <div class="search-bar">
+          <span class="ms lead">smart_toy</span>
+          <input id="cmd-input" placeholder='Try "turn on kitchen light"' autocomplete="off" enterkeyhint="send">
+          <button class="icon-btn" id="cmd-send" title="Send" aria-label="Send"><span class="ms">send</span></button>
+          <button class="icon-btn" id="mic-btn" title="Speak" aria-label="Speak"><span class="ms">mic</span></button>
+        </div>
+
+        <div class="stats">
+          <div class="stat-card primary"><span class="ms">bolt</span><div><div class="stat-value" id="st-power">–</div><div class="stat-label">Live power</div></div></div>
+          <div class="stat-card secondary"><span class="ms">toggle_on</span><div><div class="stat-value" id="st-on">–</div><div class="stat-label">Devices on</div></div></div>
+          <div class="stat-card tertiary"><span class="ms">thermostat</span><div><div class="stat-value" id="st-temp">–</div><div class="stat-label">Indoor</div></div></div>
+          <div class="stat-card neutral"><span class="ms">water_drop</span><div><div class="stat-value" id="st-hum">–</div><div class="stat-label">Humidity</div></div></div>
+        </div>
+
+        <div class="layout">
+          <div>
+            <div class="section-head">
+              <h2>Rooms</h2>
+              <button id="all-off" class="btn text"><span class="ms">power_settings_new</span>All off</button>
+            </div>
+            <div id="rooms" class="rooms"></div>
+          </div>
+          <aside class="side">
+            <div class="card filled">
+              <h2 class="card-title">Activity</h2>
+              <ul id="alerts" class="list"></ul>
+            </div>
+            <div class="card outlined hidden" id="sim-card">
+              <h2 class="card-title"><span class="ms">science</span>Simulator</h2>
+              <p class="body-sm on-variant">Mock mode — trigger sensors to test your routines.</p>
+              <div class="chip-set">
+                <button class="chip" data-sim='["living_env",{"temperature":33}]'><span class="ms">heat</span>Hot room</button>
+                <button class="chip" data-sim='["living_env",{"temperature":24}]'><span class="ms">ac_unit</span>Cool room</button>
+                <button class="chip" data-sim='["living_motion",{"motion":true}]'><span class="ms">directions_walk</span>Motion</button>
+                <button class="chip" data-sim='["kitchen_gas",{"gas":true}]'><span class="ms">local_fire_department</span>Gas leak</button>
+                <button class="chip" data-sim='["kitchen_gas",{"gas":false}]'><span class="ms">check_circle</span>Gas clear</button>
+                <button class="chip" data-sim='["front_door",{"open":true}]'><span class="ms">door_open</span>Door open</button>
+                <button class="chip" data-sim='["front_door",{"open":false}]'><span class="ms">door_front</span>Door shut</button>
+                <button class="chip" data-sim='["bathroom_leak",{"leak":true}]'><span class="ms">water_damage</span>Leak</button>
+                <button class="chip" data-sim='["garden_env",{"soil":15}]'><span class="ms">potted_plant</span>Dry soil</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ============================== SECURITY ============================== -->
+      <section id="tab-security" class="tab">
+        <div class="layout">
+          <div class="card filled camera-card">
+            <div class="card-head">
+              <h2 class="card-title"><span class="ms">videocam</span>Front camera</h2>
+              <a class="btn tonal" id="snap-btn" href="/api/camera/snapshot" target="_blank"><span class="ms">photo_camera</span>Snapshot</a>
+            </div>
+            <div class="camera-box">
+              <img id="camera-img" alt="Live camera">
+              <div id="camera-off" class="camera-off"><span class="ms xl">videocam_off</span>Camera offline
+                <span class="body-sm">Connect a USB webcam or Pi Camera and enable it in config.yaml</span></div>
+              <span class="live-badge" id="live-badge"><span class="dot"></span>LIVE</span>
+            </div>
+          </div>
+          <aside class="side">
+            <div class="card security-status" id="sec-card">
+              <div class="sec-icon"><span class="ms xl" id="sec-icon">lock_open</span></div>
+              <div class="sec-text" id="sec-text">Disarmed</div>
+              <p class="body-sm on-variant" id="sec-hint">Door and camera alerts are off</p>
+              <button id="arm-btn-2" class="btn filled wide">Arm system</button>
+            </div>
+            <div class="card filled">
+              <h2 class="card-title">Sensors</h2>
+              <ul id="sec-sensors" class="list"></ul>
+            </div>
+          </aside>
+        </div>
+        <div class="card filled">
+          <div class="card-head">
+            <h2 class="card-title"><span class="ms">badge</span>Door access</h2>
+            <div class="inline hidden" id="rfid-sim">
+              <div class="text-field"><input id="rfid-card" value="123456789012" placeholder=" "><label>Card id</label></div>
+              <button class="btn tonal" id="rfid-btn"><span class="ms">contactless</span>Simulate</button>
+            </div>
+          </div>
+          <ul id="access" class="list"></ul>
+        </div>
+      </section>
+
+      <!-- ============================== ENERGY ============================== -->
+      <section id="tab-energy" class="tab">
+        <div class="stats">
+          <div class="stat-card primary"><span class="ms">electric_meter</span><div><div class="stat-value" id="en-live">–</div><div class="stat-label">Live load</div></div></div>
+          <div class="stat-card secondary"><span class="ms">today</span><div><div class="stat-value" id="en-today">–</div><div class="stat-label">Today</div></div></div>
+          <div class="stat-card tertiary"><span class="ms">payments</span><div><div class="stat-value" id="en-cost">–</div><div class="stat-label">Cost today</div></div></div>
+          <div class="stat-card neutral"><span class="ms">date_range</span><div><div class="stat-value" id="en-week">–</div><div class="stat-label">Last 7 days</div></div></div>
+        </div>
+        <div class="layout">
+          <div class="card filled"><h2 class="card-title">Daily usage (kWh)</h2><div class="chart-box"><canvas id="energy-chart"></canvas></div></div>
+          <div class="card filled side">
+            <h2 class="card-title">Today by device</h2>
+            <ul id="energy-devices" class="list"></ul>
+            <div class="text-field"><input id="tariff" type="number" step="0.1" value="8" placeholder=" "><label>Price per kWh</label></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================== ROUTINES ============================== -->
+      <section id="tab-automations" class="tab">
+        <div class="card filled">
+          <h2 class="card-title"><span class="ms">smart_toy</span>Automations</h2>
+          <p class="body-sm on-variant">Defined in <code>config.yaml</code>. Switch off to pause a routine.</p>
+          <ul id="rules" class="list"></ul>
+        </div>
+        <div class="card filled">
+          <h2 class="card-title"><span class="ms">schedule</span>Schedules</h2>
+          <ul id="schedules" class="list"></ul>
+        </div>
+      </section>
+
+      <!-- ============================== HISTORY ============================== -->
+      <section id="tab-history" class="tab">
+        <div class="card filled">
+          <div class="card-head">
+            <h2 class="card-title"><span class="ms">monitoring</span>Sensor history</h2>
+            <div class="inline">
+              <div class="text-field select"><select id="hist-key"></select><label>Sensor</label></div>
+              <div class="segmented" id="hist-range">
+                <button data-h="1">1h</button><button data-h="6">6h</button><button data-h="24" class="selected">24h</button><button data-h="168">7d</button>
+              </div>
+            </div>
+          </div>
+          <div class="chart-box tall"><canvas id="history-chart"></canvas></div>
+        </div>
+        <div class="card filled"><h2 class="card-title"><span class="ms">receipt_long</span>Event log</h2><ul id="events" class="list"></ul></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- FAB (phone) -->
+  <button class="fab fab-float" id="fab" aria-label="Voice command"><span class="ms">mic</span></button>
+
+  <!-- Theme dialog -->
+  <div class="scrim hidden" id="theme-dialog">
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="theme-title">
+      <span class="ms dialog-icon">palette</span>
+      <h2 id="theme-title">Wallpaper &amp; style</h2>
+      <p class="body-sm on-variant">Pick a seed colour — the whole app is recoloured with Material You dynamic colour.</p>
+      <div class="swatches" id="swatches"></div>
+      <div class="segmented full" id="mode-seg">
+        <button data-mode="auto"><span class="ms sm">brightness_auto</span>Auto</button>
+        <button data-mode="light"><span class="ms sm">light_mode</span>Light</button>
+        <button data-mode="dark"><span class="ms sm">dark_mode</span>Dark</button>
+      </div>
+      <div class="dialog-actions"><button class="btn text" id="theme-close">Done</button></div>
+    </div>
+  </div>
+
+  <!-- Listening sheet -->
+  <div class="scrim hidden" id="listen-sheet">
+    <div class="bottom-sheet">
+      <div class="drag-handle"></div>
+      <div class="listening"><span class="ms xl">mic</span></div>
+      <p id="listen-text" class="title-md">Listening…</p>
+      <button class="btn text" id="listen-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <div id="toasts" class="snackbars"></div>
+  <script type="module" src="/static/theme.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
