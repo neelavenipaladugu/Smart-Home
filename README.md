@@ -187,3 +187,6 @@ smoke or CO detectors.
 ## 💡 Ideas to extend
 Home Assistant integration through MQTT discovery · PZEM-004T real energy metering · IR blaster for the TV and AC ·
 curtain motor · weather-based watering · Grafana dashboards · presence detection by phone Wi-Fi.
+
+## 👤 Author
+**Neelaveni Paladugu** ([@neelavenipaladugu](https://github.com/neelavenipaladugu))
